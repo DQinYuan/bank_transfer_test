@@ -47,11 +47,11 @@ func main() {
 
 	rootCmd.Flags().StringVarP(&bConfig.passwd, "passwd", "P", defaultPasswd, "db password");
 	rootCmd.Flags().IntVarP(&bConfig.concurrency, "concurrency", "C", defaultConcurrency, "concurrency for account transfer, default is 2 * NumCPU")
-	rootCmd.Flags().StringVarP(&bConfig.dbname, "dbname", "DB", defaultDbname, "db to operate")
+	rootCmd.Flags().StringVarP(&bConfig.dbname, "dbname", "B", defaultDbname, "db to operate")
 	rootCmd.Flags().StringVarP(&bConfig.user, "user", "U", defaultUser, "user to log in tidb")
 	rootCmd.Flags().IntVarP(&bConfig.numAccounts, "accounts-num", "A", defaultNumAccounts, "accounts num of one table, the balance of one account is 1000")
 	rootCmd.Flags().IntVarP(&bConfig.tableNum, "table-num", "T", defaultTableNum, "number of tables")
-	rootCmd.Flags().StringVarP(&bConfig.duration, "duration-time", "DT", defaultDuration, "the duration time of benchmark, except load data time")
+	rootCmd.Flags().StringVarP(&bConfig.duration, "duration-time", "D", defaultDuration, "the duration time of benchmark, except load data time")
 	rootCmd.Flags().StringVarP(&bConfig.interval, "interval", "I", defaultInterval, "interval for STW")
 
 	if err := rootCmd.Execute(); err != nil {
