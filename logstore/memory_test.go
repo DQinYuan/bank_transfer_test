@@ -2,13 +2,23 @@ package logstore
 
 import (
 	"database/sql"
-	"fmt"
+	. "github.com/pingcap/check"
+	_ "github.com/proullon/ramsql/driver"
 	"sync"
 	"testing"
-	_ "github.com/proullon/ramsql/driver"
 )
 
-func TestMemStore(t *testing.T) {
+var _ = Suite(&testMemSuite{})
+var _ = Suite(&testMemRamSqlSuite{})
+
+func TestSuite(t *testing.T) {
+	TestingT(t)
+}
+
+type testMemSuite struct {
+}
+
+func (*testMemSuite) TestMemStore(c *C) {
 	tables := []string{"accounts0", "accounts1"}
 
 	m := &memStore{}
@@ -29,9 +39,9 @@ func TestMemStore(t *testing.T) {
 
 	wg.Wait()
 
-	fmt.Println(len(*m.tableMap[tables[0]]))
-	fmt.Println(len(*m.tableMap[tables[1]]))
-	fmt.Println(m.GetBalance(tables[0], 10))
+	c.Assert(len(*m.tableMap[tables[0]]), Equals, 10000)
+	c.Assert(len(*m.tableMap[tables[1]]), Equals, 10000)
+	c.Assert(m.GetBalance(tables[0], 10), Equals, 1000)
 
 	wg = &sync.WaitGroup{}
 	wg.Add(2)
@@ -52,11 +62,15 @@ func TestMemStore(t *testing.T) {
 
 	wg.Wait()
 
-	fmt.Println(m.GetBalance(tables[0], 1))
-	fmt.Println(m.GetBalance(tables[0], 10))
+	c.Assert(m.GetBalance(tables[0], 1), Equals, 1300)
+	c.Assert(m.GetBalance(tables[0], 10), Equals, 700)
 }
 
-func TestMemStore_Verify(t *testing.T) {
+type testMemRamSqlSuite struct {
+	db *sql.DB
+}
+
+func (s *testMemRamSqlSuite) SetUpSuite(c *C) {
 	batch := []string{
 		`CREATE TABLE accounts0 (id BIGINT(20) PRIMARY KEY, balance BIGINT(20) NOT NULL);`,
 		`INSERT INTO accounts0 (id, balance) VALUES (0, 10);`,
@@ -65,22 +79,23 @@ func TestMemStore_Verify(t *testing.T) {
 	}
 
 	db, err := sql.Open("ramsql", "TestLoadUserAddresses")
-	if err != nil {
-		t.Fatalf("sql.Open : Error : %v\n", err)
-	}
-	defer db.Close()
+	c.Assert(err, IsNil)
 
 	for _, b := range batch {
 		_, err = db.Exec(b)
-		if err != nil {
-			t.Fatalf("sql.Exec: Error: %s\n", err)
-		}
+		c.Assert(err, IsNil)
 	}
+	s.db = db
+}
 
-	rows, err := db.Query("select * from accounts0")
-	if err != nil {
-		t.Fatalf("query err %v\n", err)
-	}
+func (s *testMemRamSqlSuite) TearDownSuite(c *C) {
+	s.db.Close()
+}
+
+func (s *testMemRamSqlSuite) TestMemStore_Verify(c *C) {
+
+	rows, err := s.db.Query("select * from accounts0")
+	c.Assert(err, IsNil)
 
 	tables := []string{"accounts0"}
 
@@ -92,36 +107,12 @@ func TestMemStore_Verify(t *testing.T) {
 	}
 
 	vInfo := m.Verify(tables[0], rows)
-	if vInfo != nil {
-		t.Errorf("vInfo should be <nil>, but real is '%v'\n", vInfo)
-	}
+	c.Assert(vInfo, IsNil)
 }
 
-func TestMemStore_Verify2(t *testing.T) {
-	batch := []string{
-		`CREATE TABLE accounts0 (id BIGINT(20) PRIMARY KEY, balance BIGINT(20) NOT NULL);`,
-		`INSERT INTO accounts0 (id, balance) VALUES (0, 10);`,
-		`INSERT INTO accounts0 (id, balance) VALUES (1, 10);`,
-		`INSERT INTO accounts0 (id, balance) VALUES (2, 10);`,
-	}
-
-	db, err := sql.Open("ramsql", "TestLoadUserAddresses")
-	if err != nil {
-		t.Fatalf("sql.Open : Error : %v\n", err)
-	}
-	defer db.Close()
-
-	for _, b := range batch {
-		_, err = db.Exec(b)
-		if err != nil {
-			t.Fatalf("sql.Exec: Error: %s\n", err)
-		}
-	}
-
-	rows, err := db.Query("select * from accounts0")
-	if err != nil {
-		t.Fatalf("query err %v\n", err)
-	}
+func (s *testMemRamSqlSuite) TestMemStore_Verify2(c *C) {
+	rows, err := s.db.Query("select * from accounts0")
+	c.Assert(err, IsNil)
 
 	tables := []string{"accounts0"}
 
@@ -133,36 +124,12 @@ func TestMemStore_Verify2(t *testing.T) {
 	}
 
 	vInfo := m.Verify(tables[0], rows)
-	if vInfo.Real != "none db loss data" {
-		t.Errorf("vInfo.Real should be 'none db loss data', but real is '%v'\n", vInfo)
-	}
+	c.Assert(vInfo.Real, Equals, "none db loss data")
 }
 
-func TestMemStore_Verify3(t *testing.T) {
-	batch := []string{
-		`CREATE TABLE accounts0 (id BIGINT(20) PRIMARY KEY, balance BIGINT(20) NOT NULL);`,
-		`INSERT INTO accounts0 (id, balance) VALUES (0, 10);`,
-		`INSERT INTO accounts0 (id, balance) VALUES (1, 10);`,
-		`INSERT INTO accounts0 (id, balance) VALUES (2, 10);`,
-	}
-
-	db, err := sql.Open("ramsql", "TestLoadUserAddresses")
-	if err != nil {
-		t.Fatalf("sql.Open : Error : %v\n", err)
-	}
-	defer db.Close()
-
-	for _, b := range batch {
-		_, err = db.Exec(b)
-		if err != nil {
-			t.Fatalf("sql.Exec: Error: %s\n", err)
-		}
-	}
-
-	rows, err := db.Query("select * from accounts0")
-	if err != nil {
-		t.Fatalf("query err %v\n", err)
-	}
+func (s *testMemRamSqlSuite) TestMemStore_Verify3(c *C) {
+	rows, err := s.db.Query("select * from accounts0")
+	c.Assert(err, IsNil)
 
 	tables := []string{"accounts0"}
 
@@ -174,36 +141,12 @@ func TestMemStore_Verify3(t *testing.T) {
 	}
 
 	vInfo := m.Verify(tables[0], rows)
-	if vInfo.Expected != "none data" {
-		t.Errorf("vInfo.Expected should be 'none data', but real is '%v'\n", vInfo)
-	}
+	c.Assert(vInfo.Expected, Equals, "none data")
 }
 
-func TestMemStore_Verify4(t *testing.T) {
-	batch := []string{
-		`CREATE TABLE accounts0 (id BIGINT(20) PRIMARY KEY, balance BIGINT(20) NOT NULL);`,
-		`INSERT INTO accounts0 (id, balance) VALUES (0, 10);`,
-		`INSERT INTO accounts0 (id, balance) VALUES (1, 12);`,
-		`INSERT INTO accounts0 (id, balance) VALUES (2, 10);`,
-	}
-
-	db, err := sql.Open("ramsql", "TestLoadUserAddresses")
-	if err != nil {
-		t.Fatalf("sql.Open : Error : %v\n", err)
-	}
-	defer db.Close()
-
-	for _, b := range batch {
-		_, err = db.Exec(b)
-		if err != nil {
-			t.Fatalf("sql.Exec: Error: %s\n", err)
-		}
-	}
-
-	rows, err := db.Query("select * from accounts0")
-	if err != nil {
-		t.Fatalf("query err %v\n", err)
-	}
+func (s *testMemRamSqlSuite) TestMemStore_Verify4(c *C) {
+	rows, err := s.db.Query("select * from accounts0")
+	c.Assert(err, IsNil)
 
 	tables := []string{"accounts0"}
 
@@ -211,11 +154,15 @@ func TestMemStore_Verify4(t *testing.T) {
 	m.Open("test", len(tables))
 
 	for j := 0; j < 2; j++ {
+		if j == 1 {
+			m.InsertOrUpdate(tables[0], j, 12)
+			continue
+		}
 		m.InsertOrUpdate(tables[0], j, 10)
 	}
 
 	vInfo := m.Verify(tables[0], rows)
-	if vInfo.Real != "12" {
-		t.Errorf("vInfo.Real should be '12', but real is '%v'\n", vInfo)
-	}
+	c.Assert(vInfo.Expected, Equals, "12")
+	c.Assert(vInfo.Real, Equals, "10")
+	c.Assert(vInfo.RowId, Equals, 1)
 }
