@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/pingcap/qa/bank/db"
 	"github.com/pingcap/qa/bank/logstore"
@@ -29,14 +30,17 @@ func (b *bankCase) loaddata() {
 			defer wg.Done()
 			index := strconv.Itoa(i)
 			b.initTable(index)
-			// verfy state and start verify gorotine
-			b.startVerify(index)
+			// verfy state
+			b.verifyAllState(index)
 		}()
 	}
 
 	wg.Wait()
-
 }
+
+/*func (b *bankCase) startVerify()  {
+
+}*/
 
 type batchRange struct {
 	start int
@@ -85,7 +89,7 @@ func (b *bankCase) initTable(index string) {
 
 		start := time.Now()
 		for i := 0; i < br.size; i++ {
-			args = append(args, fmt.Sprintf("(%d, %d)", br.start + i, 1000))
+			args = append(args, fmt.Sprintf("(%d, %d)", br.start+i, 1000))
 		}
 		query := fmt.Sprintf("INSERT IGNORE INTO %s (id, balance) VALUES %s",
 			tableName, strings.Join(args, ","))
@@ -110,10 +114,66 @@ func (b *bankCase) dropTable(index string) {
 	b.dbctl.MustExec(fmt.Sprintf("drop table if exists accounts%s", index))
 }
 
+type verifyInfo struct {
+	tablename string
+	linenum int
+	expected int
+	real int
+}
+
+func (v *verifyInfo) String() string {
+	return fmt.Sprintf("verify error table %s, linenum %d, expected balance %d, real balance %d",
+		v.tablename, v.linenum, v.expected, v.real)
+}
+
 func (b *bankCase) startVerify(index string) {
+	b.verifyState(index)
 
 }
 
-func (b *bankCase) verifyAllState(index string) {
+func (b *bankCase) verifyAllState() *verifyInfo {
+	return nil
+}
+
+func (b *bankCase) verifyState(index string) *verifyInfo {
+	return nil
+}
+
+// d is transfer duration
+func (b *bankCase) transfer(duration time.Duration, interval time.Duration) {
+	timeoutCtx, cancel := context.WithTimeout(context.Background(), duration)
+	defer cancel()
+
+	// start workers
+	stopChs := make([]chan struct{}, 0, b.cfg.concurrency)
+	startChs := make([]chan struct{}, 0, b.cfg.concurrency)
+	for i := 0; i < b.cfg.concurrency; i++ {
+		stopCh := make(chan struct{})
+		stopChs = append(stopChs, stopCh)
+		startCh := make(chan struct{})
+		startChs = append(startChs, startCh)
+		w := &worker{stopSig:stopCh, startSig:startCh}
+		go w.work(timeoutCtx, b)
+	}
+
+	ctl := &controller{startSigs:startChs, stopSigs:stopChs}
+	ticker := time.NewTicker(interval)
+
+	for {
+		<- ticker.C
+		log.Println("stopping the world")
+		//stop the world
+		ctl.stopAll()
+		log.Println("stop the world success")
+
+		if info := b.verifyAllState(); info != nil {
+			log.Println(info)
+			break
+		}
+
+		log.Println("restarting the world")
+		ctl.startAll()
+		log.Println("restart the world success")
+	}
 
 }

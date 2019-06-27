@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"runtime"
+	"time"
 )
 
 const defaultPasswd = ""
@@ -18,7 +19,9 @@ const defaultUser = "root"
 const defaultDbname = "test"
 const defaultNumAccounts = 1000
 const defaultTableNum = 1
-const defaultDuration = "10s"
+const defaultDuration = "30s"
+const defaultInterval = "10s"
+
 
 type bankConfig struct {
 	passwd      string
@@ -28,6 +31,7 @@ type bankConfig struct {
 	numAccounts int
 	tableNum    int
 	duration    string
+	interval    string
 }
 
 func main() {
@@ -45,6 +49,17 @@ func main() {
 				dbCtl,
 				logstore.NewStore(bankConfig.dbname)}
 			bCase.loaddata()
+
+			duration, err := time.ParseDuration(bCase.cfg.duration)
+			if err != nil {
+				log.Fatalln("duration param format error, for example 10s, 20m, 2h, 1h10m")
+			}
+			interval, err := time.ParseDuration(bCase.cfg.interval)
+			if err != nil {
+				log.Fatalln("interval param format error, for example 10s, 20m, 2h, 1h10m")
+			}
+			// start bank transfer
+			bCase.transfer(duration, interval)
 		},
 	}
 
@@ -55,6 +70,7 @@ func main() {
 	rootCmd.Flags().IntVarP(&bankConfig.numAccounts, "accounts-num", "A", defaultNumAccounts, "accounts num of one table, the balance of one account is 1000")
 	rootCmd.Flags().IntVarP(&bankConfig.tableNum, "table-num", "T", defaultTableNum, "number of tables")
 	rootCmd.Flags().StringVarP(&bankConfig.duration, "duration-time", "DT", defaultDuration, "the duration time of benchmark")
+	rootCmd.Flags().StringVarP(&bankConfig.interval, "interval", "I", defaultInterval, "interval for STW")
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(rootCmd.UsageString())
