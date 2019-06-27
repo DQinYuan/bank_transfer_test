@@ -10,7 +10,7 @@ import (
 
 type DbCtl struct {
 	dsn string
-	db  *sql.DB
+	*sql.DB
 }
 
 func NewDb(ipPort string, user string, passwd string, dbname string) (*DbCtl, error) {
@@ -21,7 +21,7 @@ func NewDb(ipPort string, user string, passwd string, dbname string) (*DbCtl, er
 		return nil, errors.Trace(err)
 	}
 
-	dbCtl := &DbCtl{dsn:dsn, db:db}
+	dbCtl := &DbCtl{dsn:dsn, DB:db}
 
 	log.Printf("open %s db %s success\n", dsn, dbname)
 
@@ -29,7 +29,7 @@ func NewDb(ipPort string, user string, passwd string, dbname string) (*DbCtl, er
 }
 
 func (dc *DbCtl) Exec(sql string) error  {
-	_, err := dc.db.Exec(sql)
+	_, err := dc.DB.Exec(sql)
 	if err != nil {
 		return errors.Trace(err)
 	}
@@ -44,7 +44,7 @@ func (dc *DbCtl) MustExec(sql string)  {
 }
 
 func (dc *DbCtl) Query(sql string) (*sql.Rows, error) {
-	rows, err := dc.db.Query(sql)
+	rows, err := dc.DB.Query(sql)
 	if err != nil {
 		return nil, errors.Trace(err)
 	}
@@ -70,7 +70,7 @@ func (dc *DbCtl) MustQuery(sql string) *sql.Rows  {
 }
 
 func (dc *DbCtl) MustCount(tablename string) int {
-	row := dc.db.QueryRow(fmt.Sprintf("SELECT COUNT(1) FROM %s", tablename))
+	row := dc.DB.QueryRow(fmt.Sprintf("SELECT COUNT(1) FROM %s", tablename))
 
 	var count int
 	row.Scan(&count)
@@ -79,5 +79,5 @@ func (dc *DbCtl) MustCount(tablename string) int {
 }
 
 func (dc *DbCtl) Close()  {
-	dc.db.Close()
+	dc.DB.Close()
 }

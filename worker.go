@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"log"
+	"math/rand"
+	"strconv"
 	"sync"
 )
 
@@ -27,6 +30,18 @@ func (w *worker) work(context context.Context, bc *bankCase) {
 		default:
 			// normal transfer task
 
+			// random select table and transfer account
+			from, to, id := rand.Intn(bc.cfg.numAccounts), rand.Intn(bc.cfg.numAccounts), rand.Intn(bc.cfg.tableNum)
+			if from == to {
+				continue
+			}
+
+			// random transfer account
+			amount := rand.Intn(999)
+
+			bc.execTransaction(from, to, amount, strconv.Itoa(id))
+
+			// listen safe point application
 			w.safePoint()
 		}
 	}
@@ -37,6 +52,7 @@ func (w *worker) work(context context.Context, bc *bankCase) {
 func (w *worker) safePoint() {
 	select {
 	case <- w.stopSig:
+		log.Println("enter safePoint")
 		<- w.startSig
 	default:
 	}

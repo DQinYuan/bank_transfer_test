@@ -1,8 +1,10 @@
 package main
 
 import (
+	"database/sql"
 	. "github.com/pingcap/check"
 	"github.com/pingcap/qa/bank/db"
+	"github.com/pingcap/qa/bank/logstore"
 	"log"
 	"testing"
 )
@@ -26,6 +28,26 @@ func (*mockStore) InsertOrUpdate(tablename string, rowId string, account string)
 
 func (*mockStore) GetBalance(tablename string, rowId string) {
 
+}
+
+func (*mockStore) SafeIncrKeyPair(tablename string, rowId1 int, rowId2 int, change1 int, change2 int)()  {
+
+}
+
+func (*mockStore) Verify(tableName string, tableRows *sql.Rows) *logstore.VerifyInfo  {
+
+	log.Printf("%s verifying data\n", tableName)
+
+	for tableRows.Next() {
+		var id int
+		var balance int
+		tableRows.Scan(&id, &balance)
+		if balance != 1000 {
+			return &logstore.VerifyInfo{tableName, id, 1000, balance}
+		}
+	}
+
+	return nil
 }
 
 type testBankCaseSuite struct {
@@ -63,4 +85,14 @@ func (s *testBankCaseSuite) TestInitTable(c *C) {
 
 func (s *testBankCaseSuite) TestLoaddata(c *C)  {
 	s.bc.loaddata()
+}
+
+func (s *testBankCaseSuite) TestExecTransaction(c *C)  {
+	s.bc.loaddata()
+	s.bc.execTransaction(3, 4, 600, "1")
+}
+
+func (s *testBankCaseSuite) TestVerifyAllState(c *C)  {
+	s.bc.loaddata()
+	s.bc.verifyAllState()
 }

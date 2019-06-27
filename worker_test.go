@@ -1,44 +1,48 @@
 package main
 
 import (
+	. "github.com/pingcap/check"
 	"sync"
-	"testing"
 )
 
-var globalIndex int
+var _ = Suite(&testWorkerSuite{})
 
-func (w *worker) mockWork()  {
-	for globalIndex = 0; globalIndex < 10000; globalIndex++ {
+type testWorkerSuite struct {
+	globalIndex int
+}
+
+func (w *worker) mockWork(suite *testWorkerSuite) {
+	for suite.globalIndex = 0; suite.globalIndex < 10000; suite.globalIndex++ {
 	}
 
 	w.safePoint()
 
-	for globalIndex = 10001; globalIndex < 20000; globalIndex++ {
+	for suite.globalIndex = 10001; suite.globalIndex < 20000; suite.globalIndex++ {
 	}
 }
 
-func TestSafePoint(t *testing.T) {
+func (suite *testWorkerSuite) TestSafePoint(c *C) {
 	stopSig := make(chan struct{})
 	startSig := make(chan struct{})
 	stopChs := []chan struct{}{stopSig}
 	startChs := []chan struct{}{startSig}
 
-	w := &worker{startSig:startSig, stopSig:stopSig}
-	c := &controller{startSigs:startChs, stopSigs:stopChs}
+	w := &worker{startSig: startSig, stopSig: stopSig}
+	con := &controller{startSigs: startChs, stopSigs: stopChs}
 
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
 
-
 	go func() {
 		defer wg.Done()
-		w.mockWork()
+		w.mockWork(suite)
 	}()
 
-	c.stopAll()
-	if globalIndex != 10000 {
-		t.Errorf("controllerr sync err %d\n", globalIndex)
-	}
-	c.startAll()
+	con.stopAll()
+	c.Assert(suite.globalIndex, Equals, 10000)
+	con.startAll()
 
+	wg.Wait()
+
+	c.Assert(suite.globalIndex, Equals, 20000)
 }
