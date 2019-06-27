@@ -63,28 +63,35 @@ type controller struct {
 	startSigs []chan struct{}
 }
 
-func (c *controller) stopAll()  {
+func (c *controller) stopAll(context context.Context)  {
 	wg := &sync.WaitGroup{}
 	wg.Add(len(c.stopSigs))
 	for _, s := range c.stopSigs {
 		s := s
 		go func() {
 			defer wg.Done()
-			s <-struct {}{}
+			select {
+			case s <-struct {}{}:
+			case <-context.Done():
+			}
+
 		}()
 	}
 
 	wg.Wait()
 }
 
-func (c *controller) startAll() {
+func (c *controller) startAll(context context.Context) {
 	wg := &sync.WaitGroup{}
 	wg.Add(len(c.stopSigs))
 	for _, s := range c.startSigs {
 		s := s
 		go func() {
 			defer wg.Done()
-			s <-struct {}{}
+			select {
+			case s <-struct {}{}:
+			case <-context.Done():
+			}
 		}()
 	}
 

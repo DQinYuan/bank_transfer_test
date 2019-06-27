@@ -53,7 +53,7 @@ type batchRange struct {
 // store state in local db
 func (b *bankCase) syncState(tableName string, numAccounts int) {
 	for i := 0; i < numAccounts; i++ {
-		b.store.InsertOrUpdate(tableName, strconv.Itoa(i), "1000")
+		b.store.InsertOrUpdate(tableName, i, 1000)
 	}
 }
 
@@ -171,7 +171,8 @@ func (b *bankCase) verifyState(index string) *logstore.VerifyInfo {
 	return b.store.Verify(tableName, rows)
 }
 
-// d is transfer duration
+// concurrency transfer with stw(implement by worker-controller pattern)
+// duration is transfer duration and  interval is stw interval
 func (b *bankCase) transfer(duration time.Duration, interval time.Duration) {
 	timeoutCtx, cancel := context.WithTimeout(context.Background(), duration)
 	defer cancel()
@@ -191,21 +192,33 @@ func (b *bankCase) transfer(duration time.Duration, interval time.Duration) {
 	ctl := &controller{startSigs: startChs, stopSigs: stopChs}
 	ticker := time.NewTicker(interval)
 
+	stw:
 	for {
-		<-ticker.C
-		log.Println("stopping the world")
-		//stop the world
-		ctl.stopAll()
-		log.Println("stop the world success")
-
-		if info := b.verifyAllState(); info != nil {
-			// exit immediately if verify error
-			log.Fatalln(info)
-			break
+		select {
+		case <-timeoutCtx.Done():
+			break stw
+		case <-ticker.C:
 		}
 
+		log.Println("stopping the world")
+		// stop the world
+		ctl.stopAll(timeoutCtx)
+		log.Println("stop the world success")
+
+		select {
+		case <-timeoutCtx.Done():
+			break stw
+		default:
+			if info := b.verifyAllState(); info != nil {
+				// exit immediately if verify error
+				log.Fatalln(info)
+				break stw
+			}
+		}
+
+
 		log.Println("restarting the world")
-		ctl.startAll()
+		ctl.startAll(timeoutCtx)
 		log.Println("restart the world success")
 	}
 

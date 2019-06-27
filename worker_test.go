@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	. "github.com/pingcap/check"
 	"sync"
 )
@@ -38,9 +39,11 @@ func (suite *testWorkerSuite) TestSafePoint(c *C) {
 		w.mockWork(suite)
 	}()
 
-	con.stopAll()
+	ctx := context.Background()
+
+	con.stopAll(ctx)
 	c.Assert(suite.globalIndex, Equals, 10000)
-	con.startAll()
+	con.startAll(ctx)
 
 	wg.Wait()
 

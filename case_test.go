@@ -6,6 +6,7 @@ import (
 	"github.com/pingcap/qa/bank/db"
 	"github.com/pingcap/qa/bank/logstore"
 	"log"
+	"strconv"
 	"testing"
 )
 
@@ -18,19 +19,19 @@ func TestSuite(t *testing.T) {
 type mockStore struct {
 }
 
-func (*mockStore) Open(dbname string) {
+func (*mockStore) Open(dbname string, tableNum int) {
 
 }
 
-func (*mockStore) InsertOrUpdate(tablename string, rowId string, account string) {
+func (*mockStore) InsertOrUpdate(tablename string, rowId int, account int) {
 
 }
 
-func (*mockStore) GetBalance(tablename string, rowId string) {
-
+func (*mockStore) GetBalance(tablename string, rowId int) int {
+	return 0
 }
 
-func (*mockStore) SafeIncrKeyPair(tablename string, rowId1 int, rowId2 int, change1 int, change2 int)()  {
+func (*mockStore) SafeIncrKeyPair(tableName string, rowId1 int, rowId2 int, change1 int, change2 int)()  {
 
 }
 
@@ -43,7 +44,8 @@ func (*mockStore) Verify(tableName string, tableRows *sql.Rows) *logstore.Verify
 		var balance int
 		tableRows.Scan(&id, &balance)
 		if balance != 1000 {
-			return &logstore.VerifyInfo{tableName, id, 1000, balance}
+			return &logstore.VerifyInfo{tableName, id, "1000",
+				strconv.Itoa(balance)}
 		}
 	}
 
