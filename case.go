@@ -165,7 +165,11 @@ func (b *bankCase) verifyState(index string) *logstore.VerifyInfo {
 
 	rows, err := b.dbctl.Query(fmt.Sprintf("SELECT * FROM %s ORDER BY id", tableName))
 	if err != nil {
-		log.Fatalf("query table %s fail\n", tableName)
+		if strings.Contains(err.Error(), "bad connection") || strings.Contains(err.Error(), "connection refused") {
+			log.Println("connection fail")
+			return nil
+		}
+		log.Fatalf("query table %s fail %+v\n", tableName, err)
 	}
 
 	return b.store.Verify(tableName, rows)

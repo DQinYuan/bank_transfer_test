@@ -49,14 +49,6 @@ func (dc *DbCtl) Query(sql string) (*sql.Rows, error) {
 		return nil, errors.Trace(err)
 	}
 
-/*	balances := make([]int, 0)
-	for rows.Next() {
-		var id int
-		var balance int
-		rows.Scan(&id, &balance)
-		balances = append(balances, balance)
-	}*/
-
 	return rows, nil
 }
 
