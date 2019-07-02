@@ -276,19 +276,9 @@ func (b *bankCase) execTransaction(from, to int, amount int, index string) (txer
 		log.Fatalf("select %d(%d) -> %d(%d) invalid count %d", from, fromBalance, to, toBalance, count)
 	}
 
-	update := fmt.Sprintf(`
-UPDATE %s
-  SET balance = CASE id WHEN %d THEN %d WHEN %d THEN %d END
-  WHERE id IN (%d, %d)
-`, tableName, to, toBalance+amount, from, fromBalance-amount, from, to)
-	_, err = tx.Exec(update)
-	if err != nil {
-		return errors.Trace(err)
-	}
-
 	defer func() {
 		if txerr != nil {
-			log.Printf("transaction commit error table name %s from %d to %d, %v",
+			log.Printf("transaction error rollback table name %s from %d to %d, %v",
 				tableName, from, to, txerr)
 			tx.Rollback()
 		} else {
@@ -299,7 +289,20 @@ UPDATE %s
 		}
 	}()
 
-	txerr = errors.Trace(tx.Commit())
-
-	return
+	if fromBalance >= amount {
+		update := fmt.Sprintf(`
+UPDATE %s
+  SET balance = CASE id WHEN %d THEN %d WHEN %d THEN %d END
+  WHERE id IN (%d, %d)
+`, tableName, to, toBalance+amount, from, fromBalance-amount, from, to)
+		_, err = tx.Exec(update)
+		if err != nil {
+			return errors.Trace(err)
+		}
+		txerr = errors.Trace(tx.Commit())
+		return
+	} else {
+		txerr = errors.New("balance not enough")
+		return
+	}
 }
