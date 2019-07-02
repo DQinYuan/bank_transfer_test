@@ -35,6 +35,10 @@ func (*mockStore) SafeIncrKeyPair(tableName string, rowId1 int, rowId2 int, chan
 
 }
 
+func (*mockStore) Dump(filePath string) error {
+
+}
+
 func (*mockStore) Verify(tableName string, tableRows *sql.Rows) *logstore.VerifyInfo  {
 
 	log.Printf("%s verifying data\n", tableName)

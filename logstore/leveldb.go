@@ -37,4 +37,8 @@ func (*leveldbStore) Verify(tableName string, tableRows *sql.Rows) *VerifyInfo  
 	return nil
 }
 
+func (*leveldbStore) Dump(filepath string) error {
+	return nil
+}
+
 

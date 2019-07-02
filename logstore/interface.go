@@ -25,6 +25,7 @@ type Store interface {
 	SafeIncrKeyPair(tableName string, rowId1 int, rowId2 int, change1 int, change2 int)
 	// verify a table
 	Verify(tableName string, tableRows *sql.Rows) *VerifyInfo
+	Dump(filepath string) error
 }
 
 func NewStore(dbname string, tableNum int) Store {

@@ -214,7 +214,10 @@ func (b *bankCase) transfer(duration time.Duration, interval time.Duration) {
 			break stw
 		default:
 			if info := b.verifyAllState(); info != nil {
-				// exit immediately if verify error
+				// dump current state and exit immediately if verify error
+				if err := b.store.Dump(b.cfg.dump); err != nil{
+					fmt.Printf("dump fail, %v\n", err)
+				}
 				log.Fatalln(info)
 				break stw
 			}

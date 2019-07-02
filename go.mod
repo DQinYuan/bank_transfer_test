@@ -3,7 +3,10 @@ module github.com/pingcap/qa/bank
 go 1.12
 
 require (
+	github.com/go-openapi/strfmt v0.19.0 // indirect
 	github.com/go-sql-driver/mysql v1.4.1
+	github.com/jedib0t/go-pretty v4.2.1+incompatible
+	github.com/mattn/go-runewidth v0.0.4 // indirect
 	github.com/mattn/go-sqlite3 v1.10.0 // indirect
 	github.com/pingcap/check v0.0.0-20190102082844-67f458068fc8
 	github.com/pingcap/errors v0.11.4

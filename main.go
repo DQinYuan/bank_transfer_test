@@ -21,7 +21,7 @@ const defaultNumAccounts = 1000
 const defaultTableNum = 1
 const defaultDuration = "30s"
 const defaultInterval = "10s"
-
+const defaultDump = "dump.log"
 
 type bankConfig struct {
 	passwd      string
@@ -32,6 +32,7 @@ type bankConfig struct {
 	tableNum    int
 	duration    string
 	interval    string
+	dump        string
 }
 
 var bConfig = &bankConfig{}
@@ -42,7 +43,7 @@ func main() {
 		Use:   "bank db_ip:db_port",
 		Short: "benchmark tool to mock transfer scene in bank",
 		Args:  cobra.MinimumNArgs(1),
-		Run: action,
+		Run:   action,
 	}
 
 	rootCmd.Flags().StringVarP(&bConfig.passwd, "passwd", "P", defaultPasswd, "db password");
@@ -53,6 +54,7 @@ func main() {
 	rootCmd.Flags().IntVarP(&bConfig.tableNum, "table-num", "T", defaultTableNum, "number of tables")
 	rootCmd.Flags().StringVarP(&bConfig.duration, "duration-time", "D", defaultDuration, "the duration time of benchmark, except load data time")
 	rootCmd.Flags().StringVarP(&bConfig.interval, "interval", "I", defaultInterval, "interval for STW")
+	rootCmd.Flags().StringVar(&bConfig.dump, "dump", defaultDump, "dump path when verify fail")
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(rootCmd.UsageString())
@@ -60,7 +62,7 @@ func main() {
 	}
 }
 
-func action(cmd *cobra.Command, args []string)  {
+func action(cmd *cobra.Command, args []string) {
 	dbCtl, err := db.NewDb(args[0], bConfig.user, bConfig.passwd, bConfig.dbname)
 	if err != nil {
 		log.Fatalf("new db fail %+v", err)

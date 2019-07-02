@@ -2,5 +2,6 @@
 .idea
 *.iml
 bank
+dump.log
 out
 gen

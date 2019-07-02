@@ -66,6 +66,23 @@ func (*testMemSuite) TestMemStore(c *C) {
 	c.Assert(m.GetBalance(tables[0], 10), Equals, 700)
 }
 
+func (*testMemSuite) TestDump(c *C)  {
+	content0 := []int{10, 99, 8}
+	content1 := []int{0, 76, 55}
+	m := &memStore{}
+	m.Open("test", 2)
+
+	for id, bal := range content0 {
+		m.InsertOrUpdate("accounts0", id, bal)
+	}
+
+	for id, bal := range content1 {
+		m.InsertOrUpdate("accounts1", id, bal)
+	}
+
+	m.Dump("dump.log")
+}
+
 type testMemRamSqlSuite struct {
 	db *sql.DB
 }

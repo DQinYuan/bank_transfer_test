@@ -3,8 +3,11 @@ package logstore
 import (
 	"database/sql"
 	"fmt"
+	"log"
+	"os"
 	"strconv"
 	"sync/atomic"
+	"github.com/jedib0t/go-pretty/table"
 )
 
 type memStore struct {
@@ -79,6 +82,31 @@ func (m *memStore) Verify(tableName string, tableRows *sql.Rows) *VerifyInfo {
 			RowId:    id + 1,
 			Expected: strconv.Itoa(int(*trueTable[id+1])),
 			Real:     "none db loss data"}
+	}
+
+	return nil
+}
+
+func (m *memStore) Dump(filepath string) error {
+	file, err := os.OpenFile(filepath, os.O_WRONLY|os.O_CREATE, 0666)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	for tableName, contentPointer := range m.tableMap {
+		log.Printf("Dump %s ", tableName)
+		fmt.Fprintf(file, "%s:\n", tableName)
+
+		t := table.NewWriter()
+
+		t.SetOutputMirror(file)
+		t.AppendHeader(table.Row{"id", "balance"})
+
+		for id, balance := range *contentPointer {
+			t.AppendRow(table.Row{id, *balance})
+		}
+		t.Render()
 	}
 
 	return nil
