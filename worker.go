@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"strconv"
 	"sync"
+	"sync/atomic"
 )
 
 /*
@@ -15,6 +16,8 @@ select
 2. checkpoint
 3.
 */
+
+var txnCounter int64 = -1
 
 type worker struct {
 	stopSig  chan struct{}
@@ -39,7 +42,10 @@ func (w *worker) work(context context.Context, bc *bankCase) {
 			// random transfer account
 			amount := rand.Intn(999)
 
-			bc.execTransaction(from, to, amount, strconv.Itoa(id))
+			// get transaction id
+			txnId := atomic.AddInt64(&txnCounter, 1)
+
+			bc.execTransaction(from, to, amount, strconv.Itoa(id), txnId)
 
 			// listen safe point application
 			w.safePoint()

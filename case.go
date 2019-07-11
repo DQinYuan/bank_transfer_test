@@ -7,6 +7,7 @@ import (
 	"github.com/pingcap/qa/bank/db"
 	"github.com/pingcap/qa/bank/logstore"
 	"log"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -14,13 +15,16 @@ import (
 )
 
 type bankCase struct {
-	cfg   *bankConfig
-	dbctl *db.DbCtl
-	store logstore.Store
+	cfg        *bankConfig
+	dbctl      *db.DbCtl
+	store      logstore.Store
+	recordFile *os.File
 }
 
 func (b *bankCase) loaddata() {
 	log.Println("start load data..")
+
+	fmt.Fprintln(b.recordFile, "id,from,to,amount,err")
 
 	wg := &sync.WaitGroup{}
 	wg.Add(b.cfg.tableNum)
@@ -74,6 +78,7 @@ func (b *bankCase) initTable(index string) {
 
 	b.dbctl.MustExec(fmt.Sprintf("create table if not exists %s "+
 		"(id BIGINT PRIMARY KEY, balance BIGINT NOT NULL)", tableName))
+	b.dbctl.MustExec("create table if not exists transfer_record (`id` BIGINT PRIMARY KEY, `from` INT NOT NULL, `to` INT NOT NULL, `amount` INT NOT NULL)")
 
 	batchSize := 100000
 	jobCount, mod := b.cfg.numAccounts/batchSize, b.cfg.numAccounts%batchSize
@@ -115,6 +120,7 @@ func (b *bankCase) initTable(index string) {
 
 func (b *bankCase) dropTable(index string) {
 	b.dbctl.MustExec(fmt.Sprintf("drop table if exists accounts%s", index))
+	b.dbctl.MustExec("drop table if exists transfer_record")
 }
 
 // verifyAllState will verify one table per goroutine
@@ -151,7 +157,7 @@ func (b *bankCase) verifyAllState() *logstore.VerifyInfo {
 
 	select {
 	case <-completeCh:
-		return  nil
+		return nil
 	case vInfo := <-infoCh:
 		return vInfo
 	}
@@ -196,7 +202,7 @@ func (b *bankCase) transfer(duration time.Duration, interval time.Duration) {
 	ctl := &controller{startSigs: startChs, stopSigs: stopChs}
 	ticker := time.NewTicker(interval)
 
-	stw:
+stw:
 	for {
 		select {
 		case <-timeoutCtx.Done():
@@ -215,14 +221,15 @@ func (b *bankCase) transfer(duration time.Duration, interval time.Duration) {
 		default:
 			if info := b.verifyAllState(); info != nil {
 				// dump current state and exit immediately if verify error
-				if err := b.store.Dump(b.cfg.dump); err != nil{
+				if err := b.store.Dump(b.cfg.dump); err != nil {
 					fmt.Printf("dump fail, %v\n", err)
 				}
 				log.Fatalln(info)
 				break stw
+			} else {
+				log.Println("check pass!!!!")
 			}
 		}
-
 
 		log.Println("restarting the world")
 		ctl.startAll(timeoutCtx)
@@ -231,7 +238,7 @@ func (b *bankCase) transfer(duration time.Duration, interval time.Duration) {
 
 }
 
-func (b *bankCase) execTransaction(from, to int, amount int, index string) (txerr error) {
+func (b *bankCase) execTransaction(from, to int, amount int, index string, txnId int64) (txerr error) {
 	// start transaction
 	tx, err := b.dbctl.Begin()
 	if err != nil {
@@ -281,14 +288,16 @@ func (b *bankCase) execTransaction(from, to int, amount int, index string) (txer
 
 	defer func() {
 		if txerr != nil {
-			log.Printf("transaction error rollback table name %s from %d to %d, %v",
-				tableName, from, to, txerr)
+/*			log.Printf("transaction error rollback table name %s from %d to %d, %v",
+				tableName, from, to, txerr)*/
 			tx.Rollback()
+			fmt.Fprintf(b.recordFile, "%d,%d,%d,%d,%s\n", txnId, from, to, amount, txerr.Error())
 		} else {
-			log.Printf("transaction commit success table name %s from %d to %d",
-				tableName, from, to)
+/*			log.Printf("transaction commit success table name %s from %d to %d, amount %d",
+				tableName, from, to, amount)*/
 			// update local state
 			b.store.SafeIncrKeyPair(tableName, from, to, -amount, amount)
+			fmt.Fprintf(b.recordFile, "%d,%d,%d,%d,\n", txnId, from, to, amount)
 		}
 	}()
 
@@ -300,8 +309,20 @@ UPDATE %s
 `, tableName, to, toBalance+amount, from, fromBalance-amount, from, to)
 		_, err = tx.Exec(update)
 		if err != nil {
-			return errors.Trace(err)
+			txerr = errors.Trace(err)
+			return
 		}
+
+		updateRecord := fmt.Sprintf(`
+INSERT INTO transfer_record
+  VALUES (%d, %d, %d, %d) 
+`, txnId, from, to, amount)
+		_, err = tx.Exec(updateRecord)
+		if err != nil {
+			txerr = errors.Trace(err)
+			return
+		}
+
 		txerr = errors.Trace(tx.Commit())
 		return
 	} else {

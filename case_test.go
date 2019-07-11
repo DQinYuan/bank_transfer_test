@@ -6,6 +6,7 @@ import (
 	"github.com/pingcap/qa/bank/db"
 	"github.com/pingcap/qa/bank/logstore"
 	"log"
+	"os"
 	"strconv"
 	"testing"
 )
@@ -31,15 +32,15 @@ func (*mockStore) GetBalance(tablename string, rowId int) int {
 	return 0
 }
 
-func (*mockStore) SafeIncrKeyPair(tableName string, rowId1 int, rowId2 int, change1 int, change2 int)()  {
+func (*mockStore) SafeIncrKeyPair(tableName string, rowId1 int, rowId2 int, change1 int, change2 int) () {
 
 }
 
 func (*mockStore) Dump(filePath string) error {
-
+	return nil
 }
 
-func (*mockStore) Verify(tableName string, tableRows *sql.Rows) *logstore.VerifyInfo  {
+func (*mockStore) Verify(tableName string, tableRows *sql.Rows) *logstore.VerifyInfo {
 
 	log.Printf("%s verifying data\n", tableName)
 
@@ -70,6 +71,7 @@ func (s *testBankCaseSuite) SetUpSuite(c *C) {
 		user:        "root",
 		numAccounts: testNumAccounts,
 		tableNum:    testTableNum,
+		recordFile:  "bank.log",
 	}
 
 	dbCtl, err := db.NewDb("127.0.0.1:3306", bankConfig.user, bankConfig.passwd, bankConfig.dbname)
@@ -77,7 +79,11 @@ func (s *testBankCaseSuite) SetUpSuite(c *C) {
 		log.Fatalf("new db fail %+v", err)
 	}
 
-	s.bc = &bankCase{bankConfig, dbCtl, &mockStore{}}
+	rFile, err := os.OpenFile(bankConfig.recordFile, os.O_WRONLY|os.O_CREATE, 0666)
+	if err != nil {
+		log.Fatalf("create transfer record file %s error, %v", bankConfig.recordFile, err)
+	}
+	s.bc = &bankCase{bankConfig, dbCtl, &mockStore{}, rFile}
 }
 
 func (s *testBankCaseSuite) TearDownSuite(c *C) {
@@ -89,16 +95,16 @@ func (s *testBankCaseSuite) TestInitTable(c *C) {
 
 }
 
-func (s *testBankCaseSuite) TestLoaddata(c *C)  {
+func (s *testBankCaseSuite) TestLoaddata(c *C) {
 	s.bc.loaddata()
 }
 
-func (s *testBankCaseSuite) TestExecTransaction(c *C)  {
+func (s *testBankCaseSuite) TestExecTransaction(c *C) {
 	s.bc.loaddata()
-	s.bc.execTransaction(3, 4, 600, "1")
+	s.bc.execTransaction(3, 4, 600, "1", 10)
 }
 
-func (s *testBankCaseSuite) TestVerifyAllState(c *C)  {
+func (s *testBankCaseSuite) TestVerifyAllState(c *C) {
 	s.bc.loaddata()
 	s.bc.verifyAllState()
 }

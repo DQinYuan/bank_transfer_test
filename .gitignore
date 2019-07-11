@@ -3,5 +3,6 @@
 *.iml
 bank
 dump.log
+bank.log
 out
 gen

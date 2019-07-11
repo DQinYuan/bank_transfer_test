@@ -59,6 +59,14 @@ func (m *memStore) Verify(tableName string, tableRows *sql.Rows) *VerifyInfo {
 		var expected int64
 		if id < len(trueTable) {
 			expected = *trueTable[id]
+			if expected < 0 {
+				return &VerifyInfo{
+					TableName:tableName,
+					RowId:id,
+					Expected:"should not negative",
+					Real:strconv.Itoa(int(balance)),
+				}
+			}
 		} else {
 			// db extra data
 			return &VerifyInfo{TableName: tableName,

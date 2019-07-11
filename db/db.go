@@ -14,7 +14,7 @@ type DbCtl struct {
 }
 
 func NewDb(ipPort string, user string, passwd string, dbname string) (*DbCtl, error) {
-	dsn := fmt.Sprintf("%s:%s@(%s)/%s", user, passwd, ipPort, dbname)
+	dsn := fmt.Sprintf("%s:%s@(%s)/%s?readTimeout=1s", user, passwd, ipPort, dbname)
 
 	db, err := sql.Open("mysql", dsn)
 	if err != nil {

@@ -22,6 +22,7 @@ const defaultTableNum = 1
 const defaultDuration = "30s"
 const defaultInterval = "10s"
 const defaultDump = "dump.log"
+const defaultRecordFile = "bank.log"
 
 type bankConfig struct {
 	passwd      string
@@ -33,6 +34,7 @@ type bankConfig struct {
 	duration    string
 	interval    string
 	dump        string
+	recordFile  string
 }
 
 var bConfig = &bankConfig{}
@@ -55,6 +57,7 @@ func main() {
 	rootCmd.Flags().StringVarP(&bConfig.duration, "duration-time", "D", defaultDuration, "the duration time of benchmark, except load data time")
 	rootCmd.Flags().StringVarP(&bConfig.interval, "interval", "I", defaultInterval, "interval for STW")
 	rootCmd.Flags().StringVar(&bConfig.dump, "dump", defaultDump, "dump path when verify fail")
+	rootCmd.Flags().StringVarP(&bConfig.recordFile, "record-file", "R", defaultRecordFile, "file to record transfer, csv format")
 
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(rootCmd.UsageString())
@@ -67,9 +70,16 @@ func action(cmd *cobra.Command, args []string) {
 	if err != nil {
 		log.Fatalf("new db fail %+v", err)
 	}
-	bCase := &bankCase{bConfig,
-		dbCtl,
-		logstore.NewStore(bConfig.dbname, bConfig.tableNum)}
+
+	rFile, err := os.OpenFile(bConfig.recordFile, os.O_WRONLY|os.O_CREATE, 0666)
+	if err != nil {
+		log.Fatalf("create transfer record file %s error", bConfig.recordFile)
+	}
+
+	bCase := &bankCase{cfg: bConfig,
+		dbctl: dbCtl,
+		store: logstore.NewStore(bConfig.dbname, bConfig.tableNum),
+	    recordFile:rFile}
 	bCase.loaddata()
 
 	duration, err := time.ParseDuration(bCase.cfg.duration)

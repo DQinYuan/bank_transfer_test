@@ -3,7 +3,7 @@ package main
 import "testing"
 
 func TestAction(t *testing.T) {
-	t.SkipNow()
+	//t.SkipNow()
 	bConfig = &bankConfig{
 		passwd: "123456",
 		concurrency: 15,
@@ -13,7 +13,8 @@ func TestAction(t *testing.T) {
 		tableNum: 3,
 		duration: "50s",
 		interval: "2s",
+		recordFile:"bank.log",
 	}
 
-	action(nil, []string{"127.0.0.1:4406"})
+	action(nil, []string{"127.0.0.1:3306"})
 }
